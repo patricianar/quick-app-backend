@@ -30,4 +30,15 @@ app.post('/login', async (req, res) => {
     }, res);
 });
 
+app.post('/registration', async(req, res) => {
+    const { name, last, company, address, city, province, email, password } = req.body;
+    withDB(async (db) => {
+        const newUser = await db.collection('companies').insert({ Name: name, Last: last, Company: company, Address: address, City: city, 
+        Province: province, Email: email, Password: password });
+        //DON'T FORGET TO CREATE COLLECTION FOR EACH COMPANY
+        let responseServer = 'User has been created';
+        res.status(200).json({responseServer});
+    },res);
+})
+
 app.listen(8000, () => console.log('Listening on port 8000'));
