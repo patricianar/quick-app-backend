@@ -7,7 +7,7 @@ app.use(bodyParser.json());
 
 const withDB = async (operations, res) => {
     try {
-        const client = await MongoClient.connect('mongodb://localhost:27017', { useNewUrlParser: true });
+        const client = await MongoClient.connect('mongodb://localhost:27017', { useNewUrlParser: true,  useUnifiedTopology: true });
         const db = client.db('quickInv');
         await operations(db);
         client.close();
@@ -50,6 +50,14 @@ app.post('/addProduct', async (req, res) => {
         let responseServer = "Product has been added";
         res.status(200).json({ responseServer })
     }, res);
+})
+
+app.get('/products', async (req, res) => {
+    withDB(async (db) => {
+        const products = await db.collection('products').find({}).toArray();
+        // console.log("Returned data");
+        res.status(200).json(products);
+    }, res)
 })
 
 app.listen(8000, () => console.log('Listening on port 8000'));
