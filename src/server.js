@@ -1,6 +1,6 @@
 import express from 'express';
 import bodyParser, { json } from 'body-parser';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectID } from 'mongodb';
 
 const app = express();
 app.use(bodyParser.json());
@@ -46,7 +46,7 @@ app.post('/registration', async (req, res) => {
 app.post('/addProduct', async (req, res) => {
     const data = req.body.data;
     withDB(async (db) => {
-        const newAddProduct = await db.collection('products').insertOne({ data });
+        const newAddProduct = await db.collection('products').insertOne({ barcode: data.barcode });
         let responseServer = "Product has been added";
         res.status(200).json({ responseServer })
     }, res);
@@ -57,6 +57,25 @@ app.get('/products', async (req, res) => {
         const products = await db.collection('products').find({}).toArray();
         // console.log("Returned data");
         res.status(200).json(products);
+    }, res)
+})
+
+app.delete('/deleteProduct/:id', async(req, res) =>{
+    withDB(async (db) => {
+        const prodId = req.params.id;
+        const deleteProduct = await db.collection('products').deleteOne({"_id": ObjectID(prodId)});
+        res.status(200).json(deleteProduct);
+        console.log(barcode);
+    }, res)
+
+})
+
+app.put('/updateProduct/', async(req, res) =>{
+    
+    withDB(async (db) => {
+        const prodObj = req.body.payload;
+        const updateProduct = await db.collection('products').updateOne({"_id": ObjectID(prodObj._id)}, {"$set":{"data" : prodObj.data}});
+        res.status(200).json(updateProduct);        
     }, res)
 })
 
