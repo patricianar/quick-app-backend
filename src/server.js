@@ -1,8 +1,14 @@
 import express from 'express';
 import bodyParser, { json } from 'body-parser';
 import { MongoClient, ObjectID } from 'mongodb';
+import { start } from 'repl';
 
+const fileUpload = require('express-fileupload');
+const cors = require('cors')
 const app = express();
+const fs = require('fs');
+const readline = require('readline');
+
 app.use(bodyParser.json());
 
 const withDB = async (operations, res) => {
@@ -87,16 +93,16 @@ app.post('/emailOOS/', async (req, res) => {
     var transporter = nodemailer.createTransport({
         service: 'hotmail',
         auth: {
-            user: '@hotmail.com',
+            user: 'aliengo8@hotmail.com',
             pass: ''
         }
     });
 
     var mailOptions = {
-        from: 'patico832@hotmail.com',
+        from: 'aliengo8@hotmail.com',
         to: 'bapalacior@unal.edu.co',
         subject: 'Out Of Stock Notification',
-        text: 'The product ' + prodObj.data.name + ', barcode : ' + prodObj.data.name + ' has reached the min quantity specified. (' + prodObj.data.minStock + ')'
+        text: 'The product ' + prodObj.data.name + ', barcode : ' + prodObj.data.barcode + ' has reached the min quantity specified. (' + prodObj.data.minStock + ')'
     };
 
     transporter.sendMail(mailOptions, function (error, info) {
@@ -110,5 +116,62 @@ app.post('/emailOOS/', async (req, res) => {
     console.log(prodObj.data);
     res.status(200);
 })
+
+// middle ware
+app.use(express.static('public')); //to access the files in public folder
+app.use(cors()); // it enables all cors requests
+app.use(fileUpload());
+
+// file upload api
+app.post('/upload', (req, res) => {
+    try {
+        if (!req.files) {
+            return res.status(500).send({ msg: "file is not found" })
+        }
+        // accessing the file
+        const myFile = req.files.file;
+        //  mv() method places the file inside public directory
+        myFile.mv(`${__dirname}/public/${myFile.name}`, function (err) {
+            if (err) {
+                console.log(err)
+                return res.status(500).send({ msg: "Error occured" });
+            }
+            processLineByLine(`${__dirname}/public/${myFile.name}`, res);
+            // returing the response with file path and name
+            return res.send({ name: myFile.name, path: `/public/${myFile.name}` });
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error uploading file', error });
+    }
+})
+
+async function processLineByLine(myFile, res) {
+    try {
+        const fileStream = fs.createReadStream(myFile, { start: 74 });//skip header
+
+        const rl = readline.createInterface({
+            input: fileStream,
+            crlfDelay: Infinity //to recognize all instances of CR LF('\r\n') in input.txt as a single line break.
+        });
+
+        console.log(rl);
+        for await (const line of rl) {
+            console.log(`Line from file: ${line}`);
+            withDB(async (db) => {
+                var dataArr = line.replace(/"/g, '').split(',');
+                var data = {
+                    "barcode": dataArr[0], "name": dataArr[1], "quantity": dataArr[2],
+                    "price": dataArr[3], "weight": dataArr[4], "minStock": dataArr[5],
+                    "description": dataArr[6]
+                };
+                console.log(data);
+                const newAddProduct = await db.collection('products').insertOne({ data });
+            }, res.status(200));
+        }
+    }
+    catch (error) {
+        console.log(error);
+    }
+}
 
 app.listen(8000, () => console.log('Listening on port 8000'));
