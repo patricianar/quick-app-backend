@@ -73,7 +73,6 @@ app.delete('/deleteProduct/:id', async (req, res) => {
         res.status(200).json(deleteProduct);
         console.log(barcode);
     }, res)
-
 })
 
 app.put('/updateProduct/', async (req, res) => {
@@ -178,8 +177,12 @@ app.post('/addOrder', async (req, res) => {
     const data = req.body.data;
     withDB(async (db) => {
         const addOrder= await db.collection('orders').insertOne({ data });
-        console.log(addOrder.result.ok);
-        let responseServer = "Product has been added";
+        let responseServer = "";
+        if(addOrder.result.ok === 1){
+            responseServer = "Product has been added";
+        }else{
+            responseServer = "Problems adding order";
+        }
         res.status(200).json({ responseServer })
     }, res);
 })
@@ -187,8 +190,15 @@ app.post('/addOrder', async (req, res) => {
 app.get('/orders', async (req, res) => {
     withDB(async (db) => {
         const orders = await db.collection('orders').find({}).toArray();
-        // console.log("Returned data");
         res.status(200).json(orders);
+    }, res)
+})
+
+app.delete('/deleteOrder/:id', async (req, res) => {
+    withDB(async (db) => {
+        const orderId = req.params.id;
+        const deleteOrder = await db.collection('orders').deleteOne({ "_id": ObjectID(orderId) });
+        res.status(200).json(deleteOrder);
     }, res)
 })
 
