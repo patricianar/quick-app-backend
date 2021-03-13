@@ -174,4 +174,22 @@ async function processLineByLine(myFile, res) {
     }
 }
 
+app.post('/addOrder', async (req, res) => {
+    const data = req.body.data;
+    withDB(async (db) => {
+        const addOrder= await db.collection('orders').insertOne({ data });
+        console.log(addOrder.result.ok);
+        let responseServer = "Product has been added";
+        res.status(200).json({ responseServer })
+    }, res);
+})
+
+app.get('/orders', async (req, res) => {
+    withDB(async (db) => {
+        const orders = await db.collection('orders').find({}).toArray();
+        // console.log("Returned data");
+        res.status(200).json(orders);
+    }, res)
+})
+
 app.listen(8000, () => console.log('Listening on port 8000'));
