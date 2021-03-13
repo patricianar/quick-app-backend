@@ -243,4 +243,75 @@ app.delete("/deleteOrder/:id", async (req, res) => {
   }, res);
 });
 
+app.post("/addInvoice", async (req, res) => {
+  const data = req.body.data;
+  withDB(async (db) => {
+    const addOrder = await db.collection("invoices").insertOne({ data });
+    let responseServer = "";
+    if (addOrder.result.ok === 1) {
+      responseServer = "Invoice has been added";
+    } else {
+      responseServer = "Problems adding invoice";
+    }
+    res.status(200).json({ responseServer });
+  }, res);
+});
+
+app.get("/invoices", async (req, res) => {
+  withDB(async (db) => {
+    const invoices = await db.collection("invoices").find({}).toArray();
+    res.status(200).json(invoices);
+  }, res);
+});
+
+app.get("/lastOrderId", async (req, res) => {
+  withDB(async (db) => {
+    const lastOrder = await db
+      .collection("orders")
+      .find({})
+      .sort({ $natural: -1 })
+      .limit(1)
+      .toArray();
+    let responseServer = 0;
+    if (lastOrder.length > 0) {
+      responseServer = parseInt(lastOrder[0].data.orderId) + 1;
+    } else {
+      responseServer = 1000;
+    }
+    res.status(200).json(responseServer);
+  }, res);
+});
+
+app.get("/invoice", async (req, res) => {
+  withDB(async (db) => {
+    const invoice = await db.collection("orders").find({}).toArray()[0];
+    res.status(200).json(invoice);
+  }, res);
+});
+
+app.post("/createPdf/:invoice", (req, res) => {
+  const invoice = req.params.invoice;
+  //   withDB(async (db) => {
+  //     const invoice = await db.collection("orders").find({}).toArray()[0];
+
+  // Create a document
+  const doc = new PDFDocument();
+
+  // Pipe its output somewhere, like to a file or HTTP response
+  // See below for browser usage
+  doc.pipe(fs.createWriteStream(invoice.data.order.orderId + ".pdf"));
+
+  // Embed a font, set the font size, and render some text
+  doc
+    // .font("fonts/PalatinoBold.ttf")
+    .fontSize(25)
+    .text("Invoice " + orderId, 100, 100);
+
+  doc.fontSize(12).text(invoice.data.order.orderDate, 60, 130);
+
+  doc.end();
+  // res.status(200).json(invoice);
+  //   }, res);
+});
+
 app.listen(8000, () => console.log("Listening on port 8000"));
