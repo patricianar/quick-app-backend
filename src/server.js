@@ -1,8 +1,8 @@
 import express from "express";
 import bodyParser, { json } from "body-parser";
 import { MongoClient, ObjectID } from "mongodb";
-import { start } from "repl";
 
+const path = require("path");
 const fileUpload = require("express-fileupload");
 const cors = require("cors");
 const app = express();
@@ -11,6 +11,7 @@ const readline = require("readline");
 const PDFDocument = require("pdfkit");
 
 app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, "/build")));
 
 const withDB = async (operations, res) => {
   try {
@@ -394,4 +395,7 @@ app.put("/updateOrder/", async (req, res) => {
   }, res);
 });
 
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname + "/build/index.html"));
+});
 app.listen(8000, () => console.log("Listening on port 8000"));
