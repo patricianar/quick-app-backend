@@ -246,9 +246,9 @@ app.delete("/deleteOrder/:id", async (req, res) => {
 app.post("/addInvoice", async (req, res) => {
   const data = req.body.data;
   withDB(async (db) => {
-    const addOrder = await db.collection("invoices").insertOne({ data });
+    const addInvoice = await db.collection("invoices").insertOne({ data });
     let responseServer = "";
-    if (addOrder.result.ok === 1) {
+    if (addInvoice.result.ok === 1) {
       responseServer = "Invoice has been added";
     } else {
       responseServer = "Problems adding invoice";
@@ -279,13 +279,6 @@ app.get("/lastOrderId", async (req, res) => {
       responseServer = 1000;
     }
     res.status(200).json(responseServer);
-  }, res);
-});
-
-app.get("/invoice", async (req, res) => {
-  withDB(async (db) => {
-    const invoice = await db.collection("orders").find({}).toArray()[0];
-    res.status(200).json(invoice);
   }, res);
 });
 
@@ -368,6 +361,37 @@ app.post("/createPdf/", (req, res) => {
   doc.end();
   doc.pipe(res);
   // res.json({ path: "/file.pdf" });
+});
+
+app.get("/lastInvoiceId", async (req, res) => {
+  withDB(async (db) => {
+    const lastInvoice = await db
+      .collection("invoices")
+      .find({})
+      .sort({ $natural: -1 })
+      .limit(1)
+      .toArray();
+    let responseServer = 0;
+    if (lastInvoice.length > 0) {
+      responseServer = parseInt(lastInvoice[0].data.invoiceId) + 1;
+    } else {
+      responseServer = 5000;
+    }
+    res.status(200).json(responseServer);
+  }, res);
+});
+
+app.put("/updateOrder/", async (req, res) => {
+  withDB(async (db) => {
+    const prodObj = req.body.payload;
+    const updateOrders = await db
+      .collection("orders")
+      .updateOne(
+        { _id: ObjectID(prodObj._id) },
+        { $set: { data: prodObj.data } }
+      );
+    res.status(200).json(updateOrders);
+  }, res);
 });
 
 app.listen(8000, () => console.log("Listening on port 8000"));
