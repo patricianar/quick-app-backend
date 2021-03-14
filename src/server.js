@@ -289,29 +289,85 @@ app.get("/invoice", async (req, res) => {
   }, res);
 });
 
-app.post("/createPdf/:invoice", (req, res) => {
-  const invoice = req.params.invoice;
-  //   withDB(async (db) => {
-  //     const invoice = await db.collection("orders").find({}).toArray()[0];
+app.post("/createPdf/", (req, res) => {
+  const invoice = req.body.payload;
 
-  // Create a document
   const doc = new PDFDocument();
 
-  // Pipe its output somewhere, like to a file or HTTP response
-  // See below for browser usage
   doc.pipe(fs.createWriteStream(invoice.data.order.orderId + ".pdf"));
-
-  // Embed a font, set the font size, and render some text
+  const startPoint = 50;
+  doc.fontSize(25).text("Invoice # 3001", startPoint, 100);
   doc
-    // .font("fonts/PalatinoBold.ttf")
     .fontSize(25)
-    .text("Invoice " + orderId, 100, 100);
+    .text("Invoice Date: " + invoice.data.company.invoiceDate, startPoint, 130);
 
-  doc.fontSize(12).text(invoice.data.order.orderDate, 60, 130);
+  doc
+    .fontSize(25)
+    .text(
+      "----------------------------------------------------------",
+      startPoint,
+      160
+    );
 
+  doc
+    .fontSize(12)
+    .text("Customer: " + invoice.data.order.customer, startPoint, 190);
+  doc
+    .fontSize(12)
+    .text("Order Id: " + invoice.data.order.orderId, startPoint, 210);
+  doc
+    .fontSize(12)
+    .text("Order date: " + invoice.data.order.orderDate, startPoint, 230);
+  doc
+    .fontSize(25)
+    .text(
+      "----------------------------------------------------------",
+      startPoint,
+      250
+    );
+  doc
+    .fontSize(12)
+    .text("Sold by: " + invoice.data.company.Company, startPoint, 280);
+  doc
+    .fontSize(25)
+    .text(
+      "----------------------------------------------------------",
+      startPoint,
+      300
+    );
+
+  let row = 330;
+  let index = 1;
+  invoice.data.order.products.map((item) => {
+    doc
+      .fontSize(12)
+      .text(
+        index +
+          ". " +
+          item.name +
+          " - Qty: " +
+          item.quantity +
+          " - Unit Price: $" +
+          item.price,
+        startPoint,
+        row
+      );
+    row += 20;
+    index += 1;
+  });
+  doc
+    .fontSize(12)
+    .text("Total: $" + invoice.data.order.total, startPoint + 401, row);
+  doc
+    .fontSize(25)
+    .text(
+      "----------------------------------------------------------",
+      startPoint,
+      (row += 20)
+    );
   doc.end();
-  // res.status(200).json(invoice);
-  //   }, res);
+  doc.pipe(res);
+  // res.json({ path: "/file.pdf" });
 });
 
 app.listen(8000, () => console.log("Listening on port 8000"));
