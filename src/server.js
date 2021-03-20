@@ -9,6 +9,8 @@ const app = express();
 const fs = require("fs");
 const readline = require("readline");
 const PDFDocument = require("pdfkit");
+const QRCode = require("qrcode");
+// const blobStream = require("blob-stream");
 
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, "/build")));
@@ -283,17 +285,26 @@ app.get("/lastOrderId", async (req, res) => {
   }, res);
 });
 
-app.post("/createPdf/", (req, res) => {
-  const invoice = req.body.payload;
+const generateQR = async (text) => {
+  try {
+    await QRCode.toFile("./1001.png", text);
+    // createPDF(text);
+  } catch (err) {
+    console.error(err);
+  }
+};
 
+const createPdf = async (invoice) => {
   const doc = new PDFDocument();
 
-  doc.pipe(fs.createWriteStream(invoice.data.order.orderId + ".pdf"));
+  doc.pipe(
+    fs.createWriteStream(`${__dirname}/public/${invoice.order.orderId}.pdf`)
+  );
   const startPoint = 50;
-  doc.fontSize(25).text("Invoice # 3001", startPoint, 100);
+  doc.fontSize(25).text(`Invoice # ${invoice.order.orderId}`, startPoint, 100);
   doc
     .fontSize(25)
-    .text("Invoice Date: " + invoice.data.company.invoiceDate, startPoint, 130);
+    .text("Invoice Date: " + invoice.company.invoiceDate, startPoint, 130);
 
   doc
     .fontSize(25)
@@ -303,15 +314,11 @@ app.post("/createPdf/", (req, res) => {
       160
     );
 
+  doc.fontSize(12).text("Customer: " + invoice.order.customer, startPoint, 190);
+  doc.fontSize(12).text("Order Id: " + invoice.order.orderId, startPoint, 210);
   doc
     .fontSize(12)
-    .text("Customer: " + invoice.data.order.customer, startPoint, 190);
-  doc
-    .fontSize(12)
-    .text("Order Id: " + invoice.data.order.orderId, startPoint, 210);
-  doc
-    .fontSize(12)
-    .text("Order date: " + invoice.data.order.orderDate, startPoint, 230);
+    .text("Order date: " + invoice.order.orderDate, startPoint, 230);
   doc
     .fontSize(25)
     .text(
@@ -319,9 +326,7 @@ app.post("/createPdf/", (req, res) => {
       startPoint,
       250
     );
-  doc
-    .fontSize(12)
-    .text("Sold by: " + invoice.data.company.Company, startPoint, 280);
+  doc.fontSize(12).text("Sold by: " + invoice.company.Company, startPoint, 280);
   doc
     .fontSize(25)
     .text(
@@ -332,7 +337,7 @@ app.post("/createPdf/", (req, res) => {
 
   let row = 330;
   let index = 1;
-  invoice.data.order.products.map((item) => {
+  invoice.order.products.map((item) => {
     doc
       .fontSize(12)
       .text(
@@ -351,7 +356,7 @@ app.post("/createPdf/", (req, res) => {
   });
   doc
     .fontSize(12)
-    .text("Total: $" + invoice.data.order.total, startPoint + 401, row);
+    .text("Total: $" + invoice.order.total, startPoint + 401, row);
   doc
     .fontSize(25)
     .text(
@@ -359,10 +364,35 @@ app.post("/createPdf/", (req, res) => {
       startPoint,
       (row += 20)
     );
+  doc
+    .image(`./${invoice.order.orderId}.png`, 420, 30, {
+      fit: [100, 100],
+    })
+    .rect(420, 30, 100, 100)
+    .stroke()
+    .text("QR", 420, 0);
   doc.end();
-  doc.pipe(res);
-  // res.json({ path: "/file.pdf" });
+};
+
+app.get("/createPdf/", async (req, res) => {
+  try {
+    const invoice = JSON.parse(req.query.data);
+    const fileName = `${__dirname}/public/${invoice.order.orderId}.pdf`;
+    let stringInvoice = JSON.stringify(invoice.order.products);
+    await QRCode.toFile(`./${invoice.order.orderId}.png`, stringInvoice);
+    await createPdf(invoice);
+    await sleep(300);
+    res.download(fileName);
+  } catch (error) {
+    res.status(500).json({ message: "Error creating invoice", error });
+  }
 });
+
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
 
 app.get("/lastInvoiceId", async (req, res) => {
   withDB(async (db) => {
