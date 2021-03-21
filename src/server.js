@@ -331,7 +331,7 @@ app.get("/lastOrderId", async (req, res) => {
       res.status(200).json(responseServer);
     },
     res,
-    req.body.company
+    req.query[0]
   );
 });
 
@@ -346,7 +346,7 @@ const generateQR = async (text) => {
 
 const createPdf = async (invoice, fileName) => {
   const doc = new PDFDocument();
-
+  console.log(fileName);
   doc.pipe(fs.createWriteStream(fileName));
   const startPoint = 50;
   doc.fontSize(25).text(`Invoice # ${invoice.order.orderId}`, startPoint, 100);
@@ -425,7 +425,7 @@ const createPdf = async (invoice, fileName) => {
 app.get("/createPdf/", async (req, res) => {
   try {
     const invoice = JSON.parse(req.query.data);
-    const fileName = `${__dirname}/public/${invoice.Company.Company}-${invoice.order.orderId}.pdf`;
+    const fileName = `${__dirname}/public/${invoice.company.Company}-${invoice.order.orderId}.pdf`;
     let stringInvoice = JSON.stringify(invoice.order.products);
     await QRCode.toFile(`./${invoice.order.orderId}.png`, stringInvoice);
     await createPdf(invoice, fileName);
