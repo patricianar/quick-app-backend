@@ -57,7 +57,7 @@ app.post("/registration", async (req, res) => {
     province,
     email,
     password,
-  } = req.body;
+  } = req.body.data;
   withDB(
     async (db) => {
       const newUser = await db.collection("companies").insert({
@@ -70,7 +70,12 @@ app.post("/registration", async (req, res) => {
         Email: email,
         Password: password,
       });
-      let responseServer = "User has been created";
+      let responseServer = "";
+      if (newUser.result.ok === 1) {
+        responseServer = "User has been created";
+      } else {
+        responseServer = "Problem adding new user";
+      }
       res.status(200).json({ responseServer });
     },
     res,
