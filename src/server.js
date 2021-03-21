@@ -15,13 +15,13 @@ const QRCode = require("qrcode");
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, "/build")));
 
-const withDB = async (operations, res) => {
+const withDB = async (operations, res, dbName) => {
   try {
     const client = await MongoClient.connect("mongodb://localhost:27017", {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
-    const db = client.db("quickInv");
+    const db = client.db(dbName);
     await operations(db);
     client.close();
   } catch (error) {
@@ -29,20 +29,22 @@ const withDB = async (operations, res) => {
   }
 };
 
-app.get("/helloFromByron", (req, res) => res.send("hello From Byron"));
-
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
-  withDB(async (db) => {
-    const user = await db
-      .collection("companies")
-      .findOne({ Email: email, Password: password });
-    let responseServer = "no";
-    if (user != null) {
-      responseServer = "yes";
-    }
-    res.status(200).json({ responseServer });
-  }, res);
+  withDB(
+    async (db) => {
+      const user = await db
+        .collection("companies")
+        .findOne({ Email: email, Password: password });
+      let responseServer = "no";
+      if (user != null) {
+        responseServer = { Company: user.Company, response: "yes" };
+      }
+      res.status(200).json({ responseServer });
+    },
+    res,
+    "quickInv"
+  );
 });
 
 app.post("/registration", async (req, res) => {
@@ -56,62 +58,80 @@ app.post("/registration", async (req, res) => {
     email,
     password,
   } = req.body;
-  withDB(async (db) => {
-    const newUser = await db.collection("companies").insert({
-      Name: name,
-      Last: last,
-      Company: company,
-      Address: address,
-      City: city,
-      Province: province,
-      Email: email,
-      Password: password,
-    });
-    //DON'T FORGET TO CREATE COLLECTION FOR EACH COMPANY
-    let responseServer = "User has been created";
-    res.status(200).json({ responseServer });
-  }, res);
+  withDB(
+    async (db) => {
+      const newUser = await db.collection("companies").insert({
+        Name: name,
+        Last: last,
+        Company: company,
+        Address: address,
+        City: city,
+        Province: province,
+        Email: email,
+        Password: password,
+      });
+      let responseServer = "User has been created";
+      res.status(200).json({ responseServer });
+    },
+    res,
+    "quickInv"
+  );
 });
 
 app.post("/addProduct", async (req, res) => {
   const data = req.body.data;
-  withDB(async (db) => {
-    const newAddProduct = await db.collection("products").insertOne({ data });
-    let responseServer = "Product has been added";
-    res.status(200).json({ responseServer });
-  }, res);
+  withDB(
+    async (db) => {
+      const newAddProduct = await db.collection("products").insertOne({ data });
+      let responseServer = "Product has been added";
+      res.status(200).json({ responseServer });
+    },
+    res,
+    req.body.company
+  );
 });
 
 app.get("/products", async (req, res) => {
-  withDB(async (db) => {
-    const products = await db.collection("products").find({}).toArray();
-    // console.log("Returned data");
-    res.status(200).json(products);
-  }, res);
+  withDB(
+    async (db) => {
+      const products = await db.collection("products").find({}).toArray();
+      res.status(200).json(products);
+    },
+    res,
+    req.query[0]
+  );
 });
 
-app.delete("/deleteProduct/:id", async (req, res) => {
-  withDB(async (db) => {
-    const prodId = req.params.id;
-    const deleteProduct = await db
-      .collection("products")
-      .deleteOne({ _id: ObjectID(prodId) });
-    res.status(200).json(deleteProduct);
-    console.log(barcode);
-  }, res);
+app.delete("/deleteProduct/:info", async (req, res) => {
+  const info = JSON.parse(req.params.info);
+  withDB(
+    async (db) => {
+      const prodId = info.id;
+      const deleteProduct = await db
+        .collection("products")
+        .deleteOne({ _id: ObjectID(prodId) });
+      res.status(200).json(deleteProduct);
+    },
+    res,
+    info.company
+  );
 });
 
 app.put("/updateProduct/", async (req, res) => {
-  withDB(async (db) => {
-    const prodObj = req.body.payload;
-    const updateProduct = await db
-      .collection("products")
-      .updateOne(
-        { _id: ObjectID(prodObj._id) },
-        { $set: { data: prodObj.data } }
-      );
-    res.status(200).json(updateProduct);
-  }, res);
+  withDB(
+    async (db) => {
+      const prodObj = req.body.payload;
+      const updateProduct = await db
+        .collection("products")
+        .updateOne(
+          { _id: ObjectID(prodObj._id) },
+          { $set: { data: prodObj.data } }
+        );
+      res.status(200).json(updateProduct);
+    },
+    res,
+    req.body.company
+  );
 });
 
 app.post("/emailOOS/", async (req, res) => {
@@ -193,22 +213,26 @@ async function processLineByLine(myFile, res) {
     console.log(rl);
     for await (const line of rl) {
       console.log(`Line from file: ${line}`);
-      withDB(async (db) => {
-        var dataArr = line.replace(/"/g, "").split(",");
-        var data = {
-          barcode: dataArr[0],
-          name: dataArr[1],
-          quantity: dataArr[2],
-          price: dataArr[3],
-          weight: dataArr[4],
-          minStock: dataArr[5],
-          description: dataArr[6],
-        };
-        console.log(data);
-        const newAddProduct = await db
-          .collection("products")
-          .insertOne({ data });
-      }, res.status(200));
+      withDB(
+        async (db) => {
+          var dataArr = line.replace(/"/g, "").split(",");
+          var data = {
+            barcode: dataArr[0],
+            name: dataArr[1],
+            quantity: dataArr[2],
+            price: dataArr[3],
+            weight: dataArr[4],
+            minStock: dataArr[5],
+            description: dataArr[6],
+          };
+          console.log(data);
+          const newAddProduct = await db
+            .collection("products")
+            .insertOne({ data });
+        },
+        res.status(200),
+        req.body.company
+      );
     }
   } catch (error) {
     console.log(error);
@@ -217,72 +241,98 @@ async function processLineByLine(myFile, res) {
 
 app.post("/addOrder", async (req, res) => {
   const data = req.body.data;
-  withDB(async (db) => {
-    const addOrder = await db.collection("orders").insertOne({ data });
-    let responseServer = "";
-    if (addOrder.result.ok === 1) {
-      responseServer = "Product has been added";
-    } else {
-      responseServer = "Problems adding order";
-    }
-    res.status(200).json({ responseServer });
-  }, res);
+  withDB(
+    async (db) => {
+      const addOrder = await db.collection("orders").insertOne({ data });
+      let responseServer = "";
+      if (addOrder.result.ok === 1) {
+        responseServer = "Product has been added";
+      } else {
+        responseServer = "Problems adding order";
+      }
+      res.status(200).json({ responseServer });
+    },
+    res,
+    req.body.company
+  );
 });
 
 app.get("/orders", async (req, res) => {
-  withDB(async (db) => {
-    const orders = await db.collection("orders").find({}).toArray();
-    res.status(200).json(orders);
-  }, res);
+  withDB(
+    async (db) => {
+      const orders = await db.collection("orders").find({}).toArray();
+      res.status(200).json(orders);
+    },
+    res,
+    req.query[0]
+  );
 });
 
-app.delete("/deleteOrder/:id", async (req, res) => {
-  withDB(async (db) => {
-    const orderId = req.params.id;
-    const deleteOrder = await db
-      .collection("orders")
-      .deleteOne({ _id: ObjectID(orderId) });
-    res.status(200).json(deleteOrder);
-  }, res);
+app.delete("/deleteOrder/:info", async (req, res) => {
+  const info = JSON.parse(req.params.info);
+  withDB(
+    async (db) => {
+      const orderId = info.id;
+      const deleteOrder = await db
+        .collection("orders")
+        .deleteOne({ _id: ObjectID(orderId) });
+      res.status(200).json(deleteOrder);
+    },
+    res,
+    info.company
+  );
 });
 
 app.post("/addInvoice", async (req, res) => {
   const data = req.body.data;
-  withDB(async (db) => {
-    const addInvoice = await db.collection("invoices").insertOne({ data });
-    let responseServer = "";
-    if (addInvoice.result.ok === 1) {
-      responseServer = "Invoice has been added";
-    } else {
-      responseServer = "Problems adding invoice";
-    }
-    res.status(200).json({ responseServer });
-  }, res);
+  withDB(
+    async (db) => {
+      const addInvoice = await db.collection("invoices").insertOne({ data });
+      let responseServer = "";
+      if (addInvoice.result.ok === 1) {
+        responseServer = "Invoice has been added";
+      } else {
+        responseServer = "Problems adding invoice";
+      }
+      res.status(200).json({ responseServer });
+    },
+    res,
+    req.body.data.company.Company
+  );
 });
 
 app.get("/invoices", async (req, res) => {
-  withDB(async (db) => {
-    const invoices = await db.collection("invoices").find({}).toArray();
-    res.status(200).json(invoices);
-  }, res);
+  console.log(req.query[0]);
+  withDB(
+    async (db) => {
+      const invoices = await db.collection("invoices").find({}).toArray();
+      res.status(200).json(invoices);
+    },
+    res,
+    req.query[0]
+  );
 });
 
 app.get("/lastOrderId", async (req, res) => {
-  withDB(async (db) => {
-    const lastOrder = await db
-      .collection("orders")
-      .find({})
-      .sort({ $natural: -1 })
-      .limit(1)
-      .toArray();
-    let responseServer = 0;
-    if (lastOrder.length > 0) {
-      responseServer = parseInt(lastOrder[0].data.orderId) + 1;
-    } else {
-      responseServer = 1000;
-    }
-    res.status(200).json(responseServer);
-  }, res);
+  withDB(
+    async (db) => {
+      const lastOrder = await db
+        .collection("orders")
+        .find({})
+        .sort({ $natural: -1 })
+        .limit(1)
+        .toArray();
+      let responseServer = 0;
+      if (lastOrder.length > 0) {
+        responseServer = parseInt(lastOrder[0].data.orderId) + 1;
+      } else {
+        responseServer = 1000;
+      }
+      res.status(200).json(responseServer);
+    },
+    res,
+    req.body.company
+  );
 });
 
 const generateQR = async (text) => {
@@ -294,12 +344,10 @@ const generateQR = async (text) => {
   }
 };
 
-const createPdf = async (invoice) => {
+const createPdf = async (invoice, fileName) => {
   const doc = new PDFDocument();
 
-  doc.pipe(
-    fs.createWriteStream(`${__dirname}/public/${invoice.order.orderId}.pdf`)
-  );
+  doc.pipe(fs.createWriteStream(fileName));
   const startPoint = 50;
   doc.fontSize(25).text(`Invoice # ${invoice.order.orderId}`, startPoint, 100);
   doc
@@ -377,10 +425,10 @@ const createPdf = async (invoice) => {
 app.get("/createPdf/", async (req, res) => {
   try {
     const invoice = JSON.parse(req.query.data);
-    const fileName = `${__dirname}/public/${invoice.order.orderId}.pdf`;
+    const fileName = `${__dirname}/public/${invoice.Company.Company}-${invoice.order.orderId}.pdf`;
     let stringInvoice = JSON.stringify(invoice.order.products);
     await QRCode.toFile(`./${invoice.order.orderId}.png`, stringInvoice);
-    await createPdf(invoice);
+    await createPdf(invoice, fileName);
     await sleep(300);
     res.download(fileName);
   } catch (error) {
@@ -395,34 +443,42 @@ function sleep(ms) {
 }
 
 app.get("/lastInvoiceId", async (req, res) => {
-  withDB(async (db) => {
-    const lastInvoice = await db
-      .collection("invoices")
-      .find({})
-      .sort({ $natural: -1 })
-      .limit(1)
-      .toArray();
-    let responseServer = 0;
-    if (lastInvoice.length > 0) {
-      responseServer = parseInt(lastInvoice[0].data.invoiceId) + 1;
-    } else {
-      responseServer = 5000;
-    }
-    res.status(200).json(responseServer);
-  }, res);
+  withDB(
+    async (db) => {
+      const lastInvoice = await db
+        .collection("invoices")
+        .find({})
+        .sort({ $natural: -1 })
+        .limit(1)
+        .toArray();
+      let responseServer = 0;
+      if (lastInvoice.length > 0) {
+        responseServer = parseInt(lastInvoice[0].data.invoiceId) + 1;
+      } else {
+        responseServer = 5000;
+      }
+      res.status(200).json(responseServer);
+    },
+    res,
+    req.query[0]
+  );
 });
 
 app.put("/updateOrder/", async (req, res) => {
-  withDB(async (db) => {
-    const prodObj = req.body.payload;
-    const updateOrders = await db
-      .collection("orders")
-      .updateOne(
-        { _id: ObjectID(prodObj._id) },
-        { $set: { data: prodObj.data } }
-      );
-    res.status(200).json(updateOrders);
-  }, res);
+  withDB(
+    async (db) => {
+      const prodObj = req.body.payload;
+      const updateOrders = await db
+        .collection("orders")
+        .updateOne(
+          { _id: ObjectID(prodObj._id) },
+          { $set: { data: prodObj.data } }
+        );
+      res.status(200).json(updateOrders);
+    },
+    res,
+    req.body.company
+  );
 });
 
 app.get("*", (req, res) => {
