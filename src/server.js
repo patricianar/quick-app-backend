@@ -13,7 +13,7 @@ const QRCode = require("qrcode");
 // const blobStream = require("blob-stream");
 
 app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, "/build")));
+app.use(express.static(path.join(__dirname, "/build"))); //add to deploy
 
 const withDB = async (operations, res, dbName) => {
   try {
@@ -38,7 +38,7 @@ app.post("/login", async (req, res) => {
         .findOne({ Email: email, Password: password });
       let responseServer = "no";
       if (user != null) {
-        responseServer = { Company: user.Company, response: "yes" };
+        responseServer = user.Company;
       }
       res.status(200).json({ responseServer });
     },
