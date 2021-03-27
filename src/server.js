@@ -519,6 +519,39 @@ app.post("/addQuantity", async (req, res) => {
   );
 });
 
+//Add products list from mobile
+app.post("/addQuantity", async (req, res) => {
+  const data = req.body;
+  withDB(
+    async (db) => {
+      const checkProduct = await db
+        .collection("products")
+        .findOne({ "data.barcode": data.barcode });
+      let responseServer = "";
+      if (checkProduct !== null) {
+        checkProduct.data.quantity =
+          parseInt(checkProduct.data.quantity) + parseInt(data.qty);
+        const addQty = await db
+          .collection("products")
+          .updateOne(
+            { _id: ObjectID(checkProduct._id) },
+            { $set: { data: checkProduct.data } }
+          );
+        if (addQty.result.ok === 1) {
+          responseServer = "Qty added";
+        } else {
+          responseServer = "Problem adding qty";
+        }
+      } else {
+        responseServer = "Product not found";
+      }
+      res.status(200).json({ responseServer });
+    },
+    res,
+    data.company
+  );
+});
+
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname + "/build/index.html"));
 });
