@@ -273,7 +273,7 @@ const sentEmail = async (prodObj) => {
     service: "hotmail",
     auth: {
       user: "aliengo8@hotmail.com",
-      pass: "2017.Arturo",
+      pass: "",
     },
   });
 
