@@ -260,6 +260,42 @@ app.post("/addOrder", async (req, res) => {
     res,
     req.body.company
   );
+
+  //update inventory quantity
+  data.products.map(async (item) => {
+    withDB(
+      async (db) => {
+        try {
+          const checkProduct = await db
+            .collection("products")
+            .findOne({ "data.barcode": item.barcode });
+          if (checkProduct !== null) {
+            checkProduct.data.quantity =
+              parseInt(checkProduct.data.quantity) - parseInt(item.quantity);
+            const substractQty = await db
+              .collection("products")
+              .updateOne(
+                { _id: ObjectID(checkProduct._id) },
+                { $set: { data: checkProduct.data } }
+              );
+            if (substractQty.result.ok === 1) {
+              console.log(checkProduct.data.barcode + ": Qty substracted");
+            } else {
+              console.log(
+                checkProduct.data.barcode + ": Problem substracting qty"
+              );
+            }
+          } else {
+            console.log(checkProduct.data.barcode + ":Product not found");
+          }
+        } catch (error) {
+          console.log(error);
+        }
+      },
+      res,
+      req.body.company
+    );
+  });
 });
 
 app.get("/orders", async (req, res) => {
@@ -520,36 +556,43 @@ app.post("/addQuantity", async (req, res) => {
 });
 
 //Add products list from mobile
-app.post("/addQuantity", async (req, res) => {
-  const data = req.body;
-  withDB(
-    async (db) => {
-      const checkProduct = await db
-        .collection("products")
-        .findOne({ "data.barcode": data.barcode });
-      let responseServer = "";
-      if (checkProduct !== null) {
-        checkProduct.data.quantity =
-          parseInt(checkProduct.data.quantity) + parseInt(data.qty);
-        const addQty = await db
-          .collection("products")
-          .updateOne(
-            { _id: ObjectID(checkProduct._id) },
-            { $set: { data: checkProduct.data } }
-          );
-        if (addQty.result.ok === 1) {
-          responseServer = "Qty added";
-        } else {
-          responseServer = "Problem adding qty";
+app.post("/addProductsList", async (req, res) => {
+  const products = JSON.parse(req.body.products);
+
+  let responseServer = "Qty added";
+  await products.map(async (item) => {
+    withDB(
+      async (db) => {
+        try {
+          const checkProduct = await db
+            .collection("products")
+            .findOne({ "data.barcode": item.barcode });
+          if (checkProduct !== null) {
+            checkProduct.data.quantity =
+              parseInt(checkProduct.data.quantity) + parseInt(item.quantity);
+            const addQty = await db
+              .collection("products")
+              .updateOne(
+                { _id: ObjectID(checkProduct._id) },
+                { $set: { data: checkProduct.data } }
+              );
+            if (addQty.result.ok === 1) {
+              responseServer = "Qty added";
+            } else {
+              responseServer = "Problem adding qty";
+            }
+          } else {
+            responseServer = "Product not found";
+          }
+        } catch (error) {
+          console.log(error);
         }
-      } else {
-        responseServer = "Product not found";
-      }
-      res.status(200).json({ responseServer });
-    },
-    res,
-    data.company
-  );
+      },
+      res,
+      req.body.company
+    );
+  });
+  res.status(200).json({ responseServer });
 });
 
 app.get("*", (req, res) => {
