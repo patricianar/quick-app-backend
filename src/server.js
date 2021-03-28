@@ -197,7 +197,7 @@ app.post("/upload", (req, res) => {
         console.log(err);
         return res.status(500).send({ msg: "Error occured" });
       }
-      processLineByLine(`${__dirname}/public/${myFile.name}`, res);
+      processLineByLine(`${__dirname}/public/${myFile.name}`, res, req);
       // returing the response with file path and name
       return res.send({ name: myFile.name, path: `/public/${myFile.name}` });
     });
@@ -206,7 +206,7 @@ app.post("/upload", (req, res) => {
   }
 });
 
-async function processLineByLine(myFile, res) {
+async function processLineByLine(myFile, res, req) {
   try {
     const fileStream = fs.createReadStream(myFile, { start: 74 }); //skip header
 
@@ -215,7 +215,6 @@ async function processLineByLine(myFile, res) {
       crlfDelay: Infinity, //to recognize all instances of CR LF('\r\n') in input.txt as a single line break.
     });
 
-    console.log(rl);
     for await (const line of rl) {
       console.log(`Line from file: ${line}`);
       withDB(
@@ -230,13 +229,12 @@ async function processLineByLine(myFile, res) {
             minStock: dataArr[5],
             description: dataArr[6],
           };
-          console.log(data);
           const newAddProduct = await db
             .collection("products")
             .insertOne({ data });
         },
         res.status(200),
-        req.body.company
+        req.headers.cookie.substring(8)
       );
     }
   } catch (error) {
