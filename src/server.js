@@ -452,9 +452,14 @@ const createPdf = async (invoice, fileName) => {
       (row += 20)
     );
   doc
-    .image(`./${invoice.order.orderId}.png`, 420, 30, {
-      fit: [100, 100],
-    })
+    .image(
+      `./${invoice.company.Company}-${invoice.order.orderId}.png`,
+      420,
+      30,
+      {
+        fit: [100, 100],
+      }
+    )
     .rect(420, 30, 100, 100)
     .stroke()
     .text("QR", 420, 0);
@@ -465,11 +470,28 @@ app.get("/createPdf/", async (req, res) => {
   try {
     const invoice = JSON.parse(req.query.data);
     const fileName = `${__dirname}/public/${invoice.company.Company}-${invoice.order.orderId}.pdf`;
-    let stringInvoice = JSON.stringify(invoice.order.products);
-    await QRCode.toFile(`./${invoice.order.orderId}.png`, stringInvoice);
-    await createPdf(invoice, fileName);
-    await sleep(300);
-    res.download(fileName);
+    if (fs.existsSync(fileName)) {
+      res.download(fileName);
+    } else {
+      let stringInvoice = JSON.stringify(invoice.order.products);
+      await QRCode.toFile(
+        `./${invoice.company.Company}-${invoice.order.orderId}.png`,
+        stringInvoice
+      );
+      await createPdf(invoice, fileName);
+      await sleep(300);
+      fs.unlink(
+        `./${invoice.company.Company}-${invoice.order.orderId}.png`,
+        (err) => {
+          if (err) {
+            console.error(err);
+            return;
+          }
+          console.log("png file removed");
+        }
+      );
+      res.download(fileName);
+    }
   } catch (error) {
     res.status(500).json({ message: "Error creating invoice", error });
   }
