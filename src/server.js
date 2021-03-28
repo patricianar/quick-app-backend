@@ -278,6 +278,41 @@ app.post("/addOrder", async (req, res) => {
               );
             if (substractQty.result.ok === 1) {
               console.log(checkProduct.data.barcode + ": Qty substracted");
+              if (checkProduct.data.quantity <= checkProduct.data.minStock) {
+                console.log("an email will be sent");
+                var nodemailer = require("nodemailer");
+
+                var transporter = nodemailer.createTransport({
+                  service: "hotmail",
+                  auth: {
+                    user: "aliengo8@hotmail.com",
+                    pass: "",
+                  },
+                });
+
+                var mailOptions = {
+                  from: "aliengo8@hotmail.com",
+                  to: "bapalacior@unal.edu.co",
+                  subject: "Out Of Stock Notification",
+                  text:
+                    "The product " +
+                    checkProduct.data.name +
+                    ", barcode : " +
+                    checkProduct.data.barcode +
+                    " has reached the min quantity specified. (" +
+                    checkProduct.data.minStock +
+                    ")",
+                };
+
+                transporter.sendMail(mailOptions, function (error, info) {
+                  if (error) {
+                    console.log(error);
+                  } else {
+                    console.log("Email sent: " + info.response);
+                  }
+                });
+                res.status(200);
+              }
             } else {
               console.log(
                 checkProduct.data.barcode + ": Problem substracting qty"
