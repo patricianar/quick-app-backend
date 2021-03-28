@@ -141,41 +141,7 @@ app.put("/updateProduct/", async (req, res) => {
 
 app.post("/emailOOS/", async (req, res) => {
   const prodObj = req.body.payload;
-
-  var nodemailer = require("nodemailer");
-
-  var transporter = nodemailer.createTransport({
-    service: "hotmail",
-    auth: {
-      user: "aliengo8@hotmail.com",
-      pass: "",
-    },
-  });
-
-  var mailOptions = {
-    from: "aliengo8@hotmail.com",
-    to: "bapalacior@unal.edu.co",
-    subject: "Out Of Stock Notification",
-    text:
-      "The product " +
-      prodObj.data.name +
-      ", barcode : " +
-      prodObj.data.barcode +
-      " has reached the min quantity specified. (" +
-      prodObj.data.minStock +
-      ")",
-  };
-
-  transporter.sendMail(mailOptions, function (error, info) {
-    if (error) {
-      console.log(error);
-    } else {
-      console.log("Email sent: " + info.response);
-    }
-  });
-
-  console.log(prodObj.data);
-  res.status(200);
+  sentEmail(prodObj);
 });
 
 // middle ware
@@ -278,6 +244,10 @@ app.post("/addOrder", async (req, res) => {
               );
             if (substractQty.result.ok === 1) {
               console.log(checkProduct.data.barcode + ": Qty substracted");
+              if (checkProduct.data.quantity <= checkProduct.data.minStock) {
+                console.log("an email will be sent");
+                sentEmail(checkProduct);
+              }
             } else {
               console.log(
                 checkProduct.data.barcode + ": Problem substracting qty"
@@ -295,6 +265,43 @@ app.post("/addOrder", async (req, res) => {
     );
   });
 });
+
+const sentEmail = async (prodObj) => {
+  var nodemailer = require("nodemailer");
+
+  var transporter = nodemailer.createTransport({
+    service: "hotmail",
+    auth: {
+      user: "aliengo8@hotmail.com",
+      pass: "2017.Arturo",
+    },
+  });
+
+  var mailOptions = {
+    from: "aliengo8@hotmail.com",
+    to: "bapalacior@unal.edu.co",
+    subject: "Out Of Stock Notification",
+    text:
+      "The product " +
+      prodObj.data.name +
+      ", barcode : " +
+      prodObj.data.barcode +
+      " has reached the min quantity specified. (" +
+      prodObj.data.minStock +
+      ")",
+  };
+
+  transporter.sendMail(mailOptions, function (error, info) {
+    if (error) {
+      console.log(error);
+    } else {
+      console.log("Email sent: " + info.response);
+    }
+  });
+
+  console.log(prodObj.data);
+  res.status(200);
+};
 
 app.get("/orders", async (req, res) => {
   withDB(
