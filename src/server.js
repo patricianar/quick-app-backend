@@ -234,7 +234,7 @@ async function processLineByLine(myFile, res, req) {
             .insertOne({ data });
         },
         res.status(200),
-        req.headers.cookie.substring(8)
+        req.body.company
       );
     }
   } catch (error) {
