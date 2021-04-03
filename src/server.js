@@ -622,6 +622,39 @@ app.post("/addProductsList", async (req, res) => {
   res.status(200).json({ responseServer });
 });
 
+//Get popular products
+app.get("/popularProds", async (req, res) => {
+  withDB(
+    async (db) => {
+      const orders = await db
+        .collection("orders")
+        .aggregate([
+          { $unwind: "$data.products" },
+          {
+            $group: {
+              _id: {
+                barcode: "$data.products.barcode",
+                name: "$data.products.name",
+              },
+              count: { $sum: 1 },
+            },
+          },
+          {
+            $group: {
+              _id: "$_id.barcode",
+              values: { $push: { name: "$_id.name", count: "$count" } },
+            },
+          },
+          { $sort: { _id: -1 } },
+        ])
+        .toArray();
+      res.status(200).json(orders);
+    },
+    res,
+    req.query[0]
+  );
+});
+
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname + "/build/index.html"));
 });
