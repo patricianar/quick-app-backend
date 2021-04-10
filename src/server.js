@@ -380,6 +380,21 @@ app.get("/lastOrderId", async (req, res) => {
   );
 });
 
+app.get("/customers", async (req, res) => {
+  withDB(
+    async (db) => {
+      const customers = await db
+        .collection("companies")
+        .aggregate([{ $project: { Email: 0, Password: 0 } }])
+        .toArray();
+      res.status(200).json(customers);
+      console.log(customers);
+    },
+    res,
+    "quickInv"
+  );
+});
+
 const generateQR = async (text) => {
   try {
     await QRCode.toFile("./1001.png", text);
@@ -634,7 +649,7 @@ app.get("/popularProds", async (req, res) => {
                 barcode: "$data.products.barcode",
                 name: "$data.products.name",
               },
-              count: { $sum: 1 },
+              count: { $sum: "$data.products.quantity" },
             },
           },
           {
