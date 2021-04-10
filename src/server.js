@@ -649,7 +649,7 @@ app.get("/popularProds", async (req, res) => {
                 barcode: "$data.products.barcode",
                 name: "$data.products.name",
               },
-              count: { $sum: "$data.products.quantity" },
+              count: { $sum: { $toInt: "$data.products.quantity" } },
             },
           },
           {
