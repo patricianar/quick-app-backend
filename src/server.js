@@ -210,6 +210,7 @@ async function processLineByLine(myFile, res, req) {
 
 app.post("/addOrder", async (req, res) => {
   const data = req.body.data;
+  data["total"] = parseFloat(data["total"]);
   withDB(
     async (db) => {
       const addOrder = await db.collection("orders").insertOne({ data });
@@ -299,7 +300,6 @@ const sentEmail = async (prodObj) => {
     }
   });
 
-  console.log(prodObj.data);
   res.status(200);
 };
 
@@ -348,7 +348,6 @@ app.post("/addInvoice", async (req, res) => {
 });
 
 app.get("/invoices", async (req, res) => {
-  console.log(req.query[0]);
   withDB(
     async (db) => {
       const invoices = await db.collection("invoices").find({}).toArray();
@@ -392,7 +391,6 @@ const generateQR = async (text) => {
 
 const createPdf = async (invoice, fileName) => {
   const doc = new PDFDocument();
-  console.log(fileName);
   doc.pipe(fs.createWriteStream(fileName));
   const startPoint = 50;
   doc.fontSize(25).text(`Invoice # ${invoice.order.orderId}`, startPoint, 100);
@@ -647,8 +645,122 @@ app.get("/popularProds", async (req, res) => {
           },
           { $sort: { _id: -1 } },
         ])
+        .limit(5)
         .toArray();
       res.status(200).json(orders);
+    },
+    res,
+    req.query[0]
+  );
+});
+
+app.get("/productInfo", async (req, res) => {
+  withDB(
+    async (db) => {
+      const product = await db
+        .collection("products")
+        .findOne({ "data.name": req.query[1] });
+      res.status(200).json(product);
+    },
+    res,
+    req.query[0]
+  );
+});
+
+app.get("/totalSales", async (req, res) => {
+  withDB(
+    async (db) => {
+      const totalSales = await db
+        .collection("invoices")
+        .aggregate([
+          {
+            $group: { _id: "1", total: { $sum: "$data.order.total" } },
+          },
+        ])
+        .toArray();
+      res.status(200).json(totalSales);
+    },
+    res,
+    req.query[0]
+  );
+});
+
+app.get("/salesByDate", async (req, res) => {
+  withDB(
+    async (db) => {
+      const salesByDate = await db
+        .collection("invoices")
+        .aggregate([
+          {
+            $group: {
+              _id: "$data.order.orderDate",
+              total: { $sum: "$data.order.total" },
+            },
+          },
+          {
+            $sort: { _id: 1 },
+          },
+        ])
+        .toArray();
+      res.status(200).json(salesByDate);
+    },
+    res,
+    req.query[0]
+  );
+});
+
+app.get("/totalOrders", async (req, res) => {
+  withDB(
+    async (db) => {
+      const totalOrders = await db.collection("orders").countDocuments();
+      res.status(200).json({ totalOrders: totalOrders });
+    },
+    res,
+    req.query[0]
+  );
+});
+
+app.get("/totalInvoices", async (req, res) => {
+  withDB(
+    async (db) => {
+      const totalInvoices = await db.collection("invoices").countDocuments();
+      res.status(200).json({ totalInvoices: totalInvoices });
+    },
+    res,
+    req.query[0]
+  );
+});
+
+app.get("/avgOrders", async (req, res) => {
+  withDB(
+    async (db) => {
+      const avgOrders = await db
+        .collection("orders")
+        .aggregate([
+          {
+            $group: { _id: "1", avg: { $avg: "$data.total" } },
+          },
+        ])
+        .toArray();
+      res.status(200).json(avgOrders);
+    },
+    res,
+    req.query[0]
+  );
+});
+
+app.get("/avgInvoices", async (req, res) => {
+  withDB(
+    async (db) => {
+      const avgOrders = await db
+        .collection("invoices")
+        .aggregate([
+          {
+            $group: { _id: "1", avg: { $avg: "$data.order.total" } },
+          },
+        ])
+        .toArray();
+      res.status(200).json(avgOrders);
     },
     res,
     req.query[0]
