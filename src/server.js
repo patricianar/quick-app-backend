@@ -274,7 +274,7 @@ const sentEmail = async (prodObj) => {
     service: "hotmail",
     auth: {
       user: "aliengo8@hotmail.com",
-      pass: "2017.Arturo",
+      pass: "",
     },
   });
 
@@ -425,6 +425,7 @@ const generateQR = async (text) => {
 };
 
 const createPdf = async (invoice, fileName) => {
+  console.log("invoice:", invoice);
   const doc = new PDFDocument();
   doc.pipe(fs.createWriteStream(fileName));
   const startPoint = 50;
@@ -441,28 +442,42 @@ const createPdf = async (invoice, fileName) => {
       160
     );
 
-  doc.fontSize(12).text("Customer: " + invoice.order.customer, startPoint, 190);
-  doc.fontSize(12).text("Order Id: " + invoice.order.orderId, startPoint, 210);
   doc
     .fontSize(12)
-    .text("Order date: " + invoice.order.orderDate, startPoint, 230);
+    .text("Customer: " + invoice.order.customer.company, startPoint, 190);
   doc
-    .fontSize(25)
+    .fontSize(12)
     .text(
-      "----------------------------------------------------------",
+      "Customer Address: " +
+        invoice.order.customer.address +
+        ", " +
+        invoice.order.customer.city +
+        ", " +
+        invoice.order.customer.province,
       startPoint,
-      250
+      210
     );
-  doc.fontSize(12).text("Sold by: " + invoice.company.Company, startPoint, 280);
+  doc.fontSize(12).text("Order Id: " + invoice.order.orderId, startPoint, 230);
+  doc
+    .fontSize(12)
+    .text("Order date: " + invoice.order.orderDate, startPoint, 260);
   doc
     .fontSize(25)
     .text(
       "----------------------------------------------------------",
       startPoint,
-      300
+      270
+    );
+  doc.fontSize(12).text("Sold by: " + invoice.company.Company, startPoint, 290);
+  doc
+    .fontSize(25)
+    .text(
+      "----------------------------------------------------------",
+      startPoint,
+      310
     );
 
-  let row = 330;
+  let row = 340;
   let index = 1;
   invoice.order.products.map((item) => {
     doc
