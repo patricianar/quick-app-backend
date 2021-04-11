@@ -453,7 +453,9 @@ const createPdf = async (invoice, fileName) => {
         ", " +
         invoice.order.customer.city +
         ", " +
-        invoice.order.customer.province,
+        invoice.order.customer.province +
+        ", " +
+        invoice.order.customer.country,
       startPoint,
       210
     );
