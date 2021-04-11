@@ -384,14 +384,34 @@ app.get("/customers", async (req, res) => {
   withDB(
     async (db) => {
       const customers = await db
-        .collection("companies")
+        .collection("customers")
         .aggregate([{ $project: { Email: 0, Password: 0 } }])
         .toArray();
       res.status(200).json(customers);
       console.log(customers);
     },
     res,
-    "quickInv"
+    req.query[0]
+  );
+});
+
+app.post("/addCustomer", async (req, res) => {
+  const data = req.body.data;
+  console.log(req.body.company);
+  withDB(
+    async (db) => {
+      const addCustomer = await db.collection("customers").insertOne({ data });
+      let responseServer = "";
+      if (addCustomer.result.ok === 1) {
+        responseServer = "Customer has been added";
+      } else {
+        responseServer = "Problems adding customer";
+      }
+      console.log(responseServer);
+      res.status(200).json({ responseServer });
+    },
+    res,
+    req.body.company
   );
 });
 
@@ -670,7 +690,6 @@ app.get("/popularProds", async (req, res) => {
 });
 
 app.get("/productInfo", async (req, res) => {
-  console.log(req.query[1]);
   withDB(
     async (db) => {
       const product = await db
