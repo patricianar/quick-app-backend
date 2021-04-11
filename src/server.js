@@ -670,11 +670,23 @@ app.get("/popularProds", async (req, res) => {
 });
 
 app.get("/productInfo", async (req, res) => {
+  console.log(req.query[1]);
   withDB(
     async (db) => {
       const product = await db
         .collection("products")
-        .findOne({ "data.name": req.query[1] });
+        .aggregate([
+          { $match: { "data.name": req.query[1] } },
+          {
+            $project: {
+              name: "$data.name",
+              quantity: { $toInt: "$data.quantity" },
+              minStock: { $toInt: "$data.minStock" },
+            },
+          },
+        ])
+        .limit(1)
+        .toArray();
       res.status(200).json(product);
     },
     res,
